@@ -17,6 +17,7 @@ import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -31,17 +32,17 @@ public class MainActivity extends Activity {
     static final int N = 4;
     static final List<LightsManager> mgrs = new ArrayList<>();
     static final List<Light> lights = new ArrayList<>();
+    static final List<String> nomesReais = new ArrayList<>();
     static final LightsManager.LightsSession[] sessoes = new LightsManager.LightsSession[N];
-    static boolean escuro = false;
+    static boolean preto = true;
 
     final float[] hue = new float[N];
     final int[] brilho = new int[N];
-    final int[] sat = new int[N];
+    final int[] vel = new int[N];
     final boolean[] rgbAtivo = new boolean[N];
     final EditText[][] campos = new EditText[N][3];
     final SeekBar[] barrasMatiz = new SeekBar[N];
-    final SeekBar[] barrasBrilho = new SeekBar[N];
-    final Switch[] switches = new Switch[N];
+    final TextView[] titulos = new TextView[N];
     TextView status;
     boolean rodando = false;
     final Handler handler = new Handler(Looper.getMainLooper());
@@ -52,9 +53,9 @@ public class MainActivity extends Activity {
             for (int i = 0; i < N; i++) {
                 if (!rgbAtivo[i]) continue;
                 algum = true;
-                hue[i] = (hue[i] + 2f) % 360f;
+                hue[i] = (hue[i] + vel[i]) % 360f;
                 enviar(i, corDe(i));
-                barrasMatiz[i].setProgress((int) hue[i]);
+                if (barrasMatiz[i] != null) barrasMatiz[i].setProgress((int) hue[i]);
                 atualizarCampos(i);
             }
             if (algum) {
@@ -68,47 +69,48 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        for (int i = 0; i < N; i++) { brilho[i] = 255; sat[i] = 255; hue[i] = 0f; }
+        for (int i = 0; i < N; i++) {
+            brilho[i] = 255;
+            vel[i] = 2;
+            hue[i] = 0f;
+        }
         setTitle("");
-        construir();
         achar();
+        construir();
     }
 
     void construir() {
-        boolean dark = escuro;
-        int fundo = dark ? Color.rgb(18, 18, 20) : Color.rgb(248, 248, 250);
-        int texto = dark ? Color.WHITE : Color.rgb(30, 30, 30);
-        int secundario = dark ? Color.rgb(150, 150, 155) : Color.rgb(110, 110, 120);
-        int cartao = dark ? Color.rgb(30, 30, 34) : Color.WHITE;
+        int fundo = preto ? Color.BLACK : Color.WHITE;
+        int texto = preto ? Color.WHITE : Color.BLACK;
+        int secundario = preto ? Color.rgb(160, 160, 165) : Color.rgb(100, 100, 105);
+        int divisor = preto ? Color.rgb(50, 50, 55) : Color.rgb(215, 215, 220);
 
         ScrollView sv = new ScrollView(this);
         sv.setBackgroundColor(fundo);
         LinearLayout raiz = new LinearLayout(this);
         raiz.setOrientation(LinearLayout.VERTICAL);
-        raiz.setPadding(48, 48, 48, 48);
+        raiz.setPadding(56, 56, 56, 56);
         sv.addView(raiz);
         setContentView(sv);
 
         status = new TextView(this);
         status.setTextSize(14);
         status.setTextColor(secundario);
-        status.setPadding(0, 0, 0, 24);
+        status.setPadding(0, 0, 0, 16);
         raiz.addView(status);
 
         for (int i = 0; i < N; i++) {
             final int idx = i;
             LinearLayout card = new LinearLayout(this);
             card.setOrientation(LinearLayout.VERTICAL);
-            card.setPadding(40, 32, 40, 32);
-            card.setBackgroundColor(cartao);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-            lp.setMargins(0, 0, 0, 28);
-            card.setLayoutParams(lp);
+            card.setPadding(0, 36, 0, 36);
 
+            // título: "Controle N" + nome real do dispositivo
             TextView t = new TextView(this);
-            t.setText("Controle " + (i + 1));
-            t.setTextSize(16);
+            t.setTextSize(18);
             t.setTextColor(texto);
+            t.setText(tituloDe(i));
+            titulos[i] = t;
             card.addView(t);
 
             // barra de matiz (arco-íris horizontal)
@@ -127,7 +129,7 @@ public class MainActivity extends Activity {
             barrasMatiz[i] = sm;
             card.addView(sm);
 
-            // barra de brilho (0 = apagado)
+            // brilho
             TextView lb = new TextView(this);
             lb.setText("Brilho");
             lb.setTextColor(secundario);
@@ -144,8 +146,26 @@ public class MainActivity extends Activity {
                 public void onStartTrackingTouch(SeekBar s) {}
                 public void onStopTrackingTouch(SeekBar s) {}
             });
-            barrasBrilho[i] = sb;
             card.addView(sb);
+
+            // velocidade do RGB
+            TextView lv = new TextView(this);
+            lv.setText("Velocidade RGB");
+            lv.setTextColor(secundario);
+            lv.setTextSize(12);
+            card.addView(lv);
+
+            SeekBar sv2 = new SeekBar(this);
+            sv2.setMax(19);
+            sv2.setProgress(vel[i] - 1);
+            sv2.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar s, int p, boolean u) {
+                    if (u) vel[idx] = p + 1;
+                }
+                public void onStartTrackingTouch(SeekBar s) {}
+                public void onStopTrackingTouch(SeekBar s) {}
+            });
+            card.addView(sv2);
 
             // linha: 3 campos + toggle RGB
             LinearLayout linha = new LinearLayout(this);
@@ -181,11 +201,17 @@ public class MainActivity extends Activity {
                     atualizarCampos(idx);
                 }
             });
-            switches[i] = sw;
             linha.addView(sw);
 
             card.addView(linha);
             raiz.addView(card);
+
+            if (i < N - 1) {
+                View linhaDiv = new View(this);
+                linhaDiv.setBackgroundColor(divisor);
+                raiz.addView(linhaDiv, new LinearLayout.LayoutParams(-1, 2));
+            }
+
             setCamposAtivos(i, !rgbAtivo[i]);
             atualizarCampos(i);
         }
@@ -203,6 +229,12 @@ public class MainActivity extends Activity {
         raiz.addView(soltar);
     }
 
+    // "Controle 1 · Wireless Controller" (ou só "Controle 1" se não houver controle)
+    String tituloDe(int i) {
+        String nome = i < nomesReais.size() ? nomesReais.get(i) : "sem controle";
+        return "Controle " + (i + 1) + "  ·  " + nome;
+    }
+
     void setCamposAtivos(int i, boolean ativo) {
         for (EditText e : campos[i]) e.setEnabled(ativo);
     }
@@ -217,7 +249,7 @@ public class MainActivity extends Activity {
     }
 
     int corDe(int i) {
-        return Color.HSVToColor(new float[]{hue[i], sat[i] / 255f, brilho[i] / 255f});
+        return Color.HSVToColor(new float[]{hue[i], 1f, brilho[i] / 255f});
     }
 
     void atualizarCampos(int i) {
@@ -230,6 +262,7 @@ public class MainActivity extends Activity {
     void achar() {
         mgrs.clear();
         lights.clear();
+        nomesReais.clear();
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice d = InputDevice.getDevice(id);
             if (d == null || (d.getSources() & InputDevice.SOURCE_GAMEPAD) != InputDevice.SOURCE_GAMEPAD) continue;
@@ -239,11 +272,15 @@ public class MainActivity extends Activity {
                 if (l.hasRgbControl()) {
                     mgrs.add(m);
                     lights.add(l);
+                    nomesReais.add(d.getName());
                     break;
                 }
             }
         }
-        status.setText("Controles conectados: " + lights.size());
+        if (status != null) status.setText("Controles conectados: " + lights.size());
+        for (int i = 0; i < N; i++) {
+            if (titulos[i] != null) titulos[i].setText(tituloDe(i));
+        }
     }
 
     int lerCampo(EditText e) {
@@ -304,14 +341,14 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add(0, 1, 0, escuro ? "Tema claro" : "Tema escuro");
+        menu.add(0, 1, 0, preto ? "Tema branco" : "Tema preto");
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == 1) {
-            escuro = !escuro;
+            preto = !preto;
             construir();
             achar();
             return true;
@@ -324,4 +361,4 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(ciclo);
         super.onDestroy();
     }
-    }
+                                               }
