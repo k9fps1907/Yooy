@@ -45,21 +45,25 @@ public class MainActivity extends Activity {
     final TextView[] titulos = new TextView[N];
     TextView status;
     boolean rodando = false;
+    int tick = 0;
     final Handler handler = new Handler(Looper.getMainLooper());
 
     final Runnable ciclo = new Runnable() {
         public void run() {
             boolean algum = false;
+            tick++;
             for (int i = 0; i < N; i++) {
                 if (!rgbAtivo[i]) continue;
                 algum = true;
                 hue[i] = (hue[i] + vel[i]) % 360f;
                 enviar(i, corDe(i));
-                if (barrasMatiz[i] != null) barrasMatiz[i].setProgress((int) hue[i]);
-                atualizarCampos(i);
+                if (tick % 10 == 0) {
+                    if (barrasMatiz[i] != null) barrasMatiz[i].setProgress((int) hue[i]);
+                    atualizarCampos(i);
+                }
             }
             if (algum) {
-                handler.postDelayed(this, 60);
+                handler.postDelayed(this, 100);
             } else {
                 rodando = false;
             }
@@ -71,7 +75,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         for (int i = 0; i < N; i++) {
             brilho[i] = 255;
-            vel[i] = 2;
+            vel[i] = 5;
             hue[i] = 0f;
         }
         setTitle("");
@@ -105,7 +109,6 @@ public class MainActivity extends Activity {
             card.setOrientation(LinearLayout.VERTICAL);
             card.setPadding(0, 36, 0, 36);
 
-            // título: "Controle N" + nome real do dispositivo
             TextView t = new TextView(this);
             t.setTextSize(18);
             t.setTextColor(texto);
@@ -113,7 +116,6 @@ public class MainActivity extends Activity {
             titulos[i] = t;
             card.addView(t);
 
-            // barra de matiz (arco-íris horizontal)
             SeekBar sm = new SeekBar(this);
             sm.setMax(360);
             sm.setProgress((int) hue[i]);
@@ -129,7 +131,6 @@ public class MainActivity extends Activity {
             barrasMatiz[i] = sm;
             card.addView(sm);
 
-            // brilho
             TextView lb = new TextView(this);
             lb.setText("Brilho");
             lb.setTextColor(secundario);
@@ -148,7 +149,6 @@ public class MainActivity extends Activity {
             });
             card.addView(sb);
 
-            // velocidade do RGB
             TextView lv = new TextView(this);
             lv.setText("Velocidade RGB");
             lv.setTextColor(secundario);
@@ -167,7 +167,6 @@ public class MainActivity extends Activity {
             });
             card.addView(sv2);
 
-            // linha: 3 campos + toggle RGB
             LinearLayout linha = new LinearLayout(this);
             linha.setOrientation(LinearLayout.HORIZONTAL);
             linha.setGravity(Gravity.CENTER_VERTICAL);
@@ -199,6 +198,9 @@ public class MainActivity extends Activity {
                 } else {
                     fecharSessao(idx);
                     atualizarCampos(idx);
+                    boolean algumRgb = false;
+                    for (boolean a : rgbAtivo) algumRgb |= a;
+                    if (!algumRgb) stopService(new Intent(MainActivity.this, KeepAlive.class));
                 }
             });
             linha.addView(sw);
@@ -229,7 +231,6 @@ public class MainActivity extends Activity {
         raiz.addView(soltar);
     }
 
-    // "Controle 1 · Wireless Controller" (ou só "Controle 1" se não houver controle)
     String tituloDe(int i) {
         String nome = i < nomesReais.size() ? nomesReais.get(i) : "sem controle";
         return "Controle " + (i + 1) + "  ·  " + nome;
@@ -361,4 +362,4 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(ciclo);
         super.onDestroy();
     }
-                                               }
+}
